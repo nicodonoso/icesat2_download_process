@@ -32,7 +32,7 @@ format long;
 path_icesat2_files = '/home/ndonso/ice_sat2/python_icesat2/olivares/data';   % where are icesat2 .h5 files
 math_file          = 'Olivares_septiembre2021_icesat2_ATL08.mat';    % name of matlab file that contain all data 
 math_filter        = 'Olivares_septiembre2021_icesat2_ATL08_filtrado.mat'; % name of mathlab file that contain filtered data
-
+cvs_name           = 'Olivares_septiembre2021_icesat2_ATL08_filtrado.cvs';
 cd(path_icesat2_files);
 
 nom=dir('*.h5');
@@ -44,20 +44,21 @@ print_figures = 0;% 1 (yes) or 0 (not)
 %2 Graficar trazas del satélite sin filtrar. Se realiza por partes para no saturar la memoria
 %3 Filtrado de datos para hacerlos mas manejables
 %4 Gráficos
+%5 Exportar a CSV lat/lon/data/date
 %############################################
 %##### "paso" DEFINE EL SWITCH CASE
-paso = 3;
+paso = 5;
 disp(['Se ejecutará el paso Nº',num2str(paso)])
 %############################################
 %Vetices del entorno general del área de estudio, se tomaron desde google earth. Se utilizan para recortar los datos de ICESAT-2 y hacerlos más manejables.
 
-v_lat = [-33.174692,-33.289772,-33.237035,-33.045642];       %vertices lat
-v_lon = [-70.298994,-70.266591,-70.040984,-70.099149];   %vertices lon
+v_lat = [-33.174692,-33.289772,-33.237035,-33.045642,-33.174692];       %vertices lat
+v_lon = [-70.298994,-70.266591,-70.040984,-70.099149,-70.298994];   %vertices lon
 
 %poligono del área de estudio definido, obtenido de un GIS
 
-area_lat = [-33.174692,-33.289772,-33.237035,-33.045642];
-area_lon = [-70.298994,-70.266591,-70.040984,-70.099149];
+area_lat = [-33.174692,-33.289772,-33.237035,-33.045642,-33.174692];
+area_lon = [-70.298994,-70.266591,-70.040984,-70.099149,-70.298994];
 
 %% Mensajes a imprimir
 if print_figures == 1
@@ -66,6 +67,7 @@ elseif print_figures == 0
     disp('No se guardarán las figuras')
 end
 %%
+
 switch paso 
     case 1 %1 Read and save data from h5 files
 	for ii = 1:length(nom)
@@ -124,10 +126,15 @@ switch paso
 		A(1:length(data),ii) = data;
 		LAT(1:length(data),ii) = latitude;
 		LON(1:length(data),ii) = lon;
+		%% En desarrollo
+                %name(ii).nombre = nombres{i};
+                date_in(ii) = datenum(str2double(nom(ii).name(7:10)),str2double(nom(ii).name(11:12)),str2double(nom(ii).name(13:14)));
+		date_matrix(1:length(data),ii) = date_in(ii);
+		%%
 		names_file(ii)={nom(ii).name};
 		end
 
-	save(math_file,'A','LAT','LON','names_file')
+	save(math_file,'A','LAT','LON','names_file','date_matrix')
 	disp('Done!, go to step 2 or 3')
 
 	case 2 %2 Graficar trazas del satélite sin filtrar. Se realiza por partes para no saturar la memoria
@@ -216,7 +223,7 @@ switch paso
 	disp(['Se encontraron ',num2str(sum(sum(in))),' puntos dentro del poligono.']);
 	disp(['Se encontraron ',num2str(sum(sum(in_lake))),' dentro de ',nombre_proyecto]);
 
-	save(math_filter,'in','A','LAT','LON','in_lake','names_file');
+	save(math_filter,'in','A','LAT','LON','in_lake','names_file','date_matrix');
 
 %#####################################################################################################
 %% Gráficos
@@ -226,8 +233,8 @@ switch paso
 
     case 4
 	disp('Paso 4')
-	%load(math_file)
-	load('icesat2_lago_data_fitrado_V2.mat')
+	load(math_filter)
+	%load('icesat2_lago_data_fitrado_V2.mat')
 	% %graficamos todas las tramas en el mapa mundial. NO SE VE NADA BIEN
 	% ff1 = figure(1)
 	% axesm('MapProjection','eqdcylin','Frame','on','Grid','on', ...
@@ -250,9 +257,15 @@ switch paso
 	%Buscamos los nombres de los archivos que tienen datos dentro del lago
 	nombres = names_file(any(in_lake));%guardo los nombres en "nombres"
 	disp(['Los archivos con datos dentro del LAGO son: ',nombres])
-
+	
 	disp(['Los indices que tienen datos dentro de la zona de estudio son: ',num2str(find(any(in_lake)))])
-
+	%% Obtenemos las fechas de los archivos
+	for i = 1:length(nombres)
+		name(i).nombre = nombres{i};
+		date_in(i) = datenum(str2double(name(i).nombre(7:10)),str2double(name(i).nombre(11:12)),str2double(name(i).nombre(13:14)));
+	end
+	datestr(date_in)
+	
 	%% Eliminacion de datos
 	% Si se detectó una medicion dentro del área de estudio se puede eliminar
 	% indicando el indice 
@@ -268,15 +281,12 @@ switch paso
 
 	%%
 
-	for i = 1:length(nombres)
-		name(i).nombre = nombres{i};
-	end
-%name(1).nombre(7:14)% me da las fechas del archivo
-%disp([name(1).nombre(7:10),'/',name(1).nombre(11:12),'/',name(1).nombre(13:14)]);% me da: 2018/11/17
-
-%cd('/home/nico/Documents/dat_cecs_lake/Datos_gps')
-%M = csvread('datos_gps.csv');
-%cd('/media/nico/data_nicod_/icesat2')% volvemos a donde estabamos
+	%name(1).nombre(7:14)% me da las fechas del archivo
+	%disp([name(1).nombre(7:10),'/',name(1).nombre(11:12),'/',name(1).nombre(13:14)]);% me da: 2018/11/17
+	
+	%cd('/home/nico/Documents/dat_cecs_lake/Datos_gps')
+	%M = csvread('datos_gps.csv');
+	%cd('/media/nico/data_nicod_/icesat2')% volvemos a donde estabamos
 
 	ff2 = figure(2);
 	clf
@@ -370,6 +380,67 @@ end
 %     M(jj,4) = sqrt((X)^2+()^2); 
 % end
 
+	case 5  
+		%% Se puede ejecutar después del paso Nº3
+		disp('Paso 5')
+		cd('/home/ndonso/ice_sat2/python_icesat2/olivares/data')
+		load(math_filter)                                                                                                     
 
+		atl08 = reshape(A,[],1);
+		lat   = reshape(LAT,[],1);
+		lon   = reshape(LON,[],1);
+		in    = reshape(in,[],1);
+		fecha = reshape(date_matrix,[],1);
+
+		% Quito los datos fuera del área
+
+		atl08(~in) = [];
+		lat(~in)   = [];
+		lon(~in)   = [];
+		fecha(~in) = [];
+		
+		 A = [lat,lon,atl08];
+                csvwrite(cvs_name,A)
+
+                for iTime = 1:length(fecha)
+                        Time{iTime} = datestr(fecha(iTime), 'yyyy-mm-dd'); 
+                end
+
+                fid = fopen('test.csv', 'w') ;
+                for iLine = 1:size(fecha, 1) % Loop through each time/value row
+                        fprintf(fid, '%s1,', Time{iLine}) ; % Print the time string
+                        fprintf(fid, '%12.3f, %12.3f\n', A(iLine, 1:3)) ; % Print the data values
+                end
+
+		A = [lat,lon,atl08];
+                %csvwrite(cvs_name,A)% CSVWRITE solo funciona para números
+
+		for iTime = 1:length(fecha)
+   			Time{iTime} = datestr(fecha(iTime), 'yyyy-mm-dd');
+		end
+
+		fid = fopen('test.csv', 'w') ;
+		fprintf(fid, '%s\n,', 'date , lat , lon , z') ; % Print header
+		for iLine = 1:size(fecha, 1) % Loop through each time/value row
+   			fprintf(fid, '%s,', Time{iLine}) ; % Print the time string
+   			fprintf(fid, '%12.3f,%12.3f, %12.3f\n', A(iLine, 1:3)) ; % Print the data values
+		end
+		fclose(fid) ;
+
+
+
+
+
+		if print_figures == 1
+
+			area_lat = [-41.2278,-41.1555,-41.1206,-41.1626,-41.2220,-41.2278];
+			area_lon = [-71.9925,-71.9953,-71.8186,-71.7904,-71.8424,-71.9925];
+			figure(1)
+			worldmap
+			hold on
+			scatterm(lat,lon,1,atl08)
+			plotm(area_lat,area_lon)
+			h = colorbar
+		end
 
 end %switch
